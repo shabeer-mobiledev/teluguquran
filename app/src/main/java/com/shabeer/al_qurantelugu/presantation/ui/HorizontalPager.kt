@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,7 +23,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -35,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat.startActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -45,33 +49,44 @@ import network.chaintech.sdpcomposemultiplatform.sdp
 
 @Composable
 fun PagerView(pagerDataViewModel: PagerDataViewModel = hiltViewModel()) {
-    pagerDataViewModel.fetchPagerImages()
+    // Fetch data only once when the Composable is first launched
+    LaunchedEffect(Unit) {
+        pagerDataViewModel.fetchPagerImages()
+    }
+
+    // Observe the pager data
     val pagerImages = pagerDataViewModel.pagerData.observeAsState(emptyList())
+
+    // Create PagerState with the current number of pages
     val pagerState = rememberPagerState(pageCount = { pagerImages.value.size })
 
-
-    Column(
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        HorizontalPager(state = pagerState) { page ->
-            ImageCard(pagerImages.value[page])
+    if (pagerImages.value.isEmpty()) {
+        // Handle empty list scenario
+        Text(
+            text = "No images available",
+            modifier = Modifier.fillMaxSize(),
+            textAlign = TextAlign.Center
+        )
+    } else {
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            HorizontalPager(state = pagerState) { page ->
+                ImageCard(pagerImages.value[page])
+            }
+            PagerIndication(pagerImages, pagerState)
         }
-        PagerIndication(pagerImages, pagerState)
     }
 }
 
-
 @Composable
 fun ImageCard(imageUrl: PagerData) {
-    val imagePath = if (imageUrl.image_path != null) {
-        "https://teluguislamicworld.in/" + imageUrl.image_path
-    } else {
-        null
-    }
+    val imagePath = imageUrl.image_path?.let { "https://teluguislamicworld.in/$it" }
 
     var imageLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -79,7 +94,6 @@ fun ImageCard(imageUrl: PagerData) {
             .height(150.sdp)
             .clickable {
                 openBrowser(imageUrl.images_url.toString(), context)
-
             }
     ) {
         Box {
@@ -91,53 +105,39 @@ fun ImageCard(imageUrl: PagerData) {
                 onError = { imageLoading = false }
             )
 
-
-
             if (imageLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier
-                        .align(Alignment.Center), color = primaryColor()
+                        .align(Alignment.Center),
+                    color = primaryColor()
                 )
             }
-
         }
     }
 }
 
-
 @Composable
 fun PagerIndication(pagerData: State<List<PagerData>>, pagerState: PagerState) {
     Row(horizontalArrangement = Arrangement.Center) {
-        pagerData.value.forEachIndexed { index, pagerData ->
-            if (index == pagerState.currentPage) {
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .size(5.sdp)
-                        .background(primaryColor())
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .size(5.sdp)
-                        .background(Color.Gray)
-                )
-            }
+        // Only recompute the pager indicator when the current page changes
+        pagerData.value.forEachIndexed { index, _ ->
+            val indicatorColor = if (index == pagerState.currentPage) primaryColor() else Color.Gray
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .size(5.sdp)
+                    .background(indicatorColor)
+            )
             Spacer(modifier = Modifier.width(2.sdp))
         }
     }
 }
 
 private fun openBrowser(url: String, context: Context) {
-    if (url == "") {
-        Toast
-            .makeText(context, "No Links Available", Toast.LENGTH_SHORT)
-            .show()
+    if (url.isBlank()) {
+        Toast.makeText(context, "No Links Available", Toast.LENGTH_SHORT).show()
     } else {
-
         val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         context.startActivity(browserIntent)
     }
-
 }

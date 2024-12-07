@@ -20,9 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +28,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
@@ -46,45 +48,15 @@ import com.shabeer.al_qurantelugu.presantation.ui.primaryColor
 import network.chaintech.sdpcomposemultiplatform.sdp
 import network.chaintech.sdpcomposemultiplatform.ssp
 
-private lateinit var billingClient: BillingClient
 
 @Composable
-fun SubscriptionScreen(activity: Activity, navController: NavController) {
-    var shouldNavigateToHome by remember { mutableStateOf(false) }
+fun SubscriptionScreen(activity: Activity, navController: NavController, billingViewModel: BillingViewModel = viewModel()) {
+    val shouldNavigateToHome by billingViewModel.shouldNavigateToHome.observeAsState(false)
 
     // Initialize BillingClient
-    billingClient = BillingClient.newBuilder(activity)
-        .setListener { billingResult, purchases ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-                for (purchase in purchases) {
-                    handlePurchase(purchase) {
-                        shouldNavigateToHome = true
-                    }
-                }
-            } else {
-                Log.d("BillingError", "onPurchasesUpdated: ${billingResult.debugMessage}")
-            }
-        }
-        .enablePendingPurchases()
-        .build()
-
-    billingClient.startConnection(object : BillingClientStateListener {
-        override fun onBillingServiceDisconnected() {
-            Log.d("BillingError", "onBillingServiceDisconnected")
-        }
-
-        override fun onBillingSetupFinished(billingResult: BillingResult) {
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.d("BillingSuccess", "onBillingSetupFinished")
-                hasSubscription {
-                    shouldNavigateToHome = true
-                }
-            }
-        }
-    })
+    billingViewModel.initializeBillingClient(activity)
 
     // UI for subscription options
-
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Image(
             painter = painterResource(id = R.drawable.ssbgone),
@@ -127,9 +99,9 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                     fontWeight = FontWeight.Bold,
                     color = primaryColor()
                 )
-
             }
         }
+
         Box(
             contentAlignment = Alignment.BottomCenter,
             modifier = Modifier
@@ -145,7 +117,7 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                     .fillMaxWidth()
             ) {
                 Button(
-                    onClick = { querySubscriptionPlans("teluguquran_onemonth", activity) },
+                    onClick = { billingViewModel.querySubscriptionPlans("teluguquran_onemonth", activity) },
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonColors(
                         containerColor = primaryColor(),
@@ -162,12 +134,7 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                 }
                 Spacer(modifier = Modifier.padding(top = 6.sdp))
                 Button(
-                    onClick = {
-                        querySubscriptionPlans(
-                            "teluguquran_threemonths",
-                            activity
-                        )
-                    },
+                    onClick = { billingViewModel.querySubscriptionPlans("teluguquran_threemonths", activity) },
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonColors(
                         containerColor = primaryColor(),
@@ -184,7 +151,7 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                 }
                 Spacer(modifier = Modifier.padding(top = 6.sdp))
                 Button(
-                    onClick = { querySubscriptionPlans("teluguquran_oneyear", activity) },
+                    onClick = { billingViewModel.querySubscriptionPlans("teluguquran_oneyear", activity) },
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonColors(
                         containerColor = primaryColor(),
@@ -201,7 +168,7 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                 }
                 Spacer(modifier = Modifier.padding(top = 6.sdp))
                 Button(
-                    onClick = { restorePurchases { shouldNavigateToHome = true } },
+                    onClick = { billingViewModel.restorePurchases() },
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonColors(
                         containerColor = primaryColor(),
@@ -215,14 +182,12 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
                         .height(50.sdp)
                 ) {
                     Text("Restore Purchases")
-
                 }
-
             }
         }
     }
 
-// Navigate to home screen when payment is successful or subscription is restored
+    // Navigate to home screen when payment is successful or subscription is restored
     if (shouldNavigateToHome) {
         LaunchedEffect(Unit) {
             navController.navigate("home") {
@@ -234,102 +199,138 @@ fun SubscriptionScreen(activity: Activity, navController: NavController) {
     }
 }
 
-private fun querySubscriptionPlans(subscriptionPlanId: String, activity: Activity) {
-    val queryProductDetailsParams = QueryProductDetailsParams.newBuilder()
-        .setProductList(
-            listOf(
-                QueryProductDetailsParams.Product.newBuilder()
-                    .setProductId(subscriptionPlanId)
-                    .setProductType(BillingClient.ProductType.SUBS)
-                    .build()
-            )
-        )
-        .build()
+class BillingViewModel : ViewModel() {
+    private val _shouldNavigateToHome = MutableLiveData(false)
+    val shouldNavigateToHome: LiveData<Boolean> get() = _shouldNavigateToHome
+    var onSubscriptionSuccess: (() -> Unit)? = null
 
-    billingClient.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsList ->
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            val productDetails = productDetailsList.firstOrNull()
-            productDetails?.let {
-                val productDetailsParamsList = listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(it)
-                        .setOfferToken(it.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: "")
+    private var billingClient: BillingClient? = null
+
+    fun initializeBillingClient(activity: Activity) {
+        billingClient = BillingClient.newBuilder(activity)
+            .setListener { billingResult, purchases ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                    for (purchase in purchases) {
+                        handlePurchase(purchase) {
+                            onSubscriptionSuccess?.invoke()
+                        }
+                    }
+                } else {
+                    Log.d("BillingError", "onPurchasesUpdated: ${billingResult.debugMessage}")
+                }
+            }
+            .enablePendingPurchases()
+            .build()
+
+        billingClient?.startConnection(object : BillingClientStateListener {
+            override fun onBillingServiceDisconnected() {
+                Log.d("BillingError", "onBillingServiceDisconnected")
+            }
+
+            override fun onBillingSetupFinished(billingResult: BillingResult) {
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.d("BillingSuccess", "onBillingSetupFinished")
+                    checkActiveSubscription()
+                }
+            }
+        })
+    }
+
+    fun querySubscriptionPlans(subscriptionPlanId: String, activity: Activity) {
+        val queryProductDetailsParams = QueryProductDetailsParams.newBuilder()
+            .setProductList(
+                listOf(
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(subscriptionPlanId)
+                        .setProductType(BillingClient.ProductType.SUBS)
                         .build()
                 )
+            )
+            .build()
 
-                val billingFlowParams = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(productDetailsParamsList)
+        billingClient?.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsList ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val productDetails = productDetailsList.firstOrNull()
+                productDetails?.let {
+                    val productDetailsParamsList = listOf(
+                        BillingFlowParams.ProductDetailsParams.newBuilder()
+                            .setProductDetails(it)
+                            .setOfferToken(it.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: "")
+                            .build()
+                    )
+
+                    val billingFlowParams = BillingFlowParams.newBuilder()
+                        .setProductDetailsParamsList(productDetailsParamsList)
+                        .build()
+
+                    billingClient?.launchBillingFlow(activity, billingFlowParams)
+                }
+            }
+        }
+    }
+
+    fun restorePurchases() {
+        billingClient?.queryPurchaseHistoryAsync(BillingClient.ProductType.SUBS) { billingResult, purchaseHistoryRecordList ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchaseHistoryRecordList != null) {
+                for (purchaseHistoryRecord in purchaseHistoryRecordList) {
+                    val purchase = Purchase(
+                        purchaseHistoryRecord.originalJson,
+                        purchaseHistoryRecord.signature
+                    )
+                    handlePurchase(purchase) {
+                        AdMobAdUnits.areAdsEnabled = false
+                        onSubscriptionSuccess?.invoke()
+                    }
+                }
+            } else {
+                Log.d("RestoreError", "Error restoring purchases: ${billingResult.debugMessage}")
+            }
+        }
+    }
+
+    private fun handlePurchase(purchase: Purchase, onPurchaseSuccess: () -> Unit) {
+        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+            if (!purchase.isAcknowledged) {
+                val acknowledgePurchaseParams = AcknowledgePurchaseParams
+                    .newBuilder()
+                    .setPurchaseToken(purchase.purchaseToken)
                     .build()
 
-                billingClient.launchBillingFlow(activity, billingFlowParams)
+                billingClient?.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                        Log.d("PurchaseSuccess", "Purchase acknowledged")
+                        onPurchaseSuccess()
+                    }
+                }
+            } else {
+                onPurchaseSuccess()
             }
         }
     }
-}
 
-private fun handlePurchase(purchase: Purchase, onPurchaseSuccess: () -> Unit) {
-    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-        if (!purchase.isAcknowledged) {
-            val acknowledgePurchaseParams = AcknowledgePurchaseParams
-                .newBuilder()
-                .setPurchaseToken(purchase.purchaseToken)
-                .build()
+    private fun checkActiveSubscription() {
+        val queryPurchaseParams = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
 
-            billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d("PurchaseSuccess", "Purchase acknowledged")
-                    onPurchaseSuccess()
+        billingClient?.queryPurchasesAsync(queryPurchaseParams) { result, purchases ->
+            when (result.responseCode) {
+                BillingClient.BillingResponseCode.OK -> {
+                    val hasActiveSubscription = purchases.any {
+                        it.purchaseState == Purchase.PurchaseState.PURCHASED
+                    }
+                    if (hasActiveSubscription) {
+                        AdMobAdUnits.areAdsEnabled = false
+                        Log.d("SubscriptionStatus", "User has an active subscription")
+                    } else {
+                        AdMobAdUnits.areAdsEnabled = true
+                        Log.d("SubscriptionStatus", "User does not have an active subscription")
+                    }
+                }
+                else -> {
+                    Log.d("SubscriptionError", "Error checking subscription status")
                 }
             }
-        } else {
-            onPurchaseSuccess()
-        }
-    }
-}
-
-private fun hasSubscription(onSubscriptionCheckComplete: () -> Unit) {
-    val queryPurchaseParams = QueryPurchasesParams.newBuilder()
-        .setProductType(BillingClient.ProductType.SUBS)
-        .build()
-
-    billingClient.queryPurchasesAsync(queryPurchaseParams) { result, purchases ->
-        when (result.responseCode) {
-            BillingClient.BillingResponseCode.OK -> {
-                val hasActiveSubscription = purchases.any {
-                    it.purchaseState == Purchase.PurchaseState.PURCHASED
-                }
-                if (hasActiveSubscription) {
-                    AdMobAdUnits.areAdsEnabled = false
-                    Log.d("SubscriptionStatus", "User has an active subscription")
-                    onSubscriptionCheckComplete()
-                } else {
-                    AdMobAdUnits.areAdsEnabled = true
-                    Log.d("SubscriptionStatus", "User does not have an active subscription")
-                }
-            }
-
-            else -> {
-                Log.d("SubscriptionStatus", "Error querying purchases: ${result.debugMessage}")
-            }
-        }
-    }
-}
-
-private fun restorePurchases(onRestoreComplete: () -> Unit) {
-    billingClient.queryPurchaseHistoryAsync(BillingClient.ProductType.SUBS) { billingResult, purchaseHistoryRecordList ->
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchaseHistoryRecordList != null) {
-            for (purchaseHistoryRecord in purchaseHistoryRecordList) {
-                val purchase = Purchase(
-                    purchaseHistoryRecord.originalJson,
-                    purchaseHistoryRecord.signature
-                )
-                handlePurchase(purchase) {
-                    AdMobAdUnits.areAdsEnabled = false
-                    onRestoreComplete()
-                }
-            }
-        } else {
-            Log.d("RestoreError", "Error restoring purchases: ${billingResult.debugMessage}")
         }
     }
 }

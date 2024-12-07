@@ -70,7 +70,6 @@ fun PdfViewer(
     val checkOrientationState = activity.resources.configuration.orientation
     val isCardVisible = remember { mutableStateOf(true) }
 
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -84,56 +83,42 @@ fun PdfViewer(
                     .weight(1f),
                 lifecycleOwner = lifecycleOwner,
                 statusCallBack = object : PdfRendererView.StatusCallBack {
-                    override fun onError(error: Throwable) {
-                        super.onError(error)
-                    }
-
-                    override fun onPageChanged(currentPage: Int, totalPage: Int) {
-                        super.onPageChanged(currentPage, totalPage)
-                    }
-
+                    override fun onError(error: Throwable) {}
+                    override fun onPageChanged(currentPage: Int, totalPage: Int) {}
                     override fun onPdfLoadProgress(
-                        progress: Int,
-                        downloadedBytes: Long,
-                        totalBytes: Long?
+                        progress: Int, downloadedBytes: Long, totalBytes: Long?
                     ) {
-                        super.onPdfLoadProgress(progress, downloadedBytes, totalBytes)
                         progresss.value = progress
                     }
 
                     override fun onPdfLoadStart() {
-                        super.onPdfLoadStart()
                         isLoding.value = true
                     }
 
                     override fun onPdfLoadSuccess(absolutePath: String) {
-                        super.onPdfLoadSuccess(absolutePath)
                         isLoding.value = false
                     }
                 }
             )
 
             if (checkOrientationState == Configuration.ORIENTATION_LANDSCAPE) {
-
                 isCardVisible.value = false
             }
             if (isCardVisible.value) {
                 AdMobBannerAd(Modifier)
             }
-
         }
+
         if (isCardVisible.value) {
             OrientationButton(activity, navHostController)
         }
+
         if (isLoding.value) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.padding(top = 10.sdp))
                     Text(text = "Loading.. ${progresss.value}%")
@@ -144,10 +129,10 @@ fun PdfViewer(
 }
 
 @Composable
-fun AdMobBannerAd(modifier: Modifier) {
+fun AdMobBannerAd(modifier: Modifier = Modifier) {
     if (AdMobAdUnits.areAdsEnabled) {
-        AndroidView(modifier = modifier
-            .fillMaxWidth(),
+        AndroidView(
+            modifier = modifier.fillMaxWidth(),
             factory = {
                 AdView(it).apply {
                     setAdSize(com.google.android.gms.ads.AdSize.BANNER)
@@ -159,7 +144,6 @@ fun AdMobBannerAd(modifier: Modifier) {
     }
 }
 
-
 @Composable
 fun OrientationButton(activity: Activity, navHostController: NavHostController) {
     Box(
@@ -170,18 +154,15 @@ fun OrientationButton(activity: Activity, navHostController: NavHostController) 
     ) {
         Card(
             shape = CircleShape,
-            colors = CardDefaults.cardColors(
-                containerColor = onPrimaryColor()
-            ),
+            colors = CardDefaults.cardColors(containerColor = onPrimaryColor()),
             modifier = Modifier
                 .size(40.sdp)
                 .clickable {
-                    if (AdMobAdUnits.areAdsEnabled){
+                    if (AdMobAdUnits.areAdsEnabled) {
                         showPopUp(activity, navHostController)
-                    }else{
+                    } else {
                         changeOrientation(activity)
                     }
-
                 }
         ) {
             Box(
@@ -191,16 +172,13 @@ fun OrientationButton(activity: Activity, navHostController: NavHostController) 
                 Image(
                     painter = painterResource(R.drawable.reshot_icon_restart_phone_v4a9nds6lb),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(20.sdp),
+                    modifier = Modifier.size(20.sdp),
                     colorFilter = ColorFilter.tint(primaryColor())
-
                 )
             }
         }
     }
 }
-
 
 private fun showPopUp(activity: Activity, navHostController: NavHostController) {
     val dialogBox = android.app.AlertDialog.Builder(activity)
@@ -208,21 +186,25 @@ private fun showPopUp(activity: Activity, navHostController: NavHostController) 
     dialogBox.setTitle("Unlock Full-Screen Mode")
     dialogBox.setMessage("Get one-time premium access! Watch a quick ad to enjoy full-screen viewing, or choose 'Unlock Premium' for unlimited access.")
     dialogBox.setCancelable(false)
+
     dialogBox.setPositiveButton("Watch Now") { _, _ ->
         Toast.makeText(activity, "Ad Showed", Toast.LENGTH_SHORT).show()
         AdmobAds(object : AdmobInterFace {
             override fun onDismiss() {
                 changeOrientation(activity)
             }
-
         }).showRewardedAds(activity)
     }
-    dialogBox.setNegativeButton("Unlock Premium") { _, _ ->
-        navHostController.navigate("premium") {
 
-        }
+    dialogBox.setNegativeButton("Unlock Premium") { _, _ ->
+        navHostController.navigate("premium")
     }
-    // Show the dialog
+
+    dialogBox.setNeutralButton("Cancel") { dialog, _ ->
+        dialog.dismiss()
+        Toast.makeText(activity, "Action Canceled", Toast.LENGTH_SHORT).show()
+    }
+
     dialogBox.show()
 }
 

@@ -157,8 +157,6 @@ fun TopAppBarScreen(
                 }
                 Divider()
 
-
-
                 Spacer(modifier = Modifier.padding(top = 10.sdp))
                 navigationItemList.forEachIndexed { index, navigationItemsData ->
                     NavigationDrawerItem(
@@ -210,7 +208,6 @@ fun TopAppBarScreen(
                                     "Exit App" -> {
                                         quranViewModel.showDialog()
                                     }
-
                                 }
                                 selectedIndex.value = index
                                 drawerState.close()
@@ -253,7 +250,7 @@ fun TopAppBarScreen(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.size(60.sdp,40.sdp).clickable {
+                            modifier = Modifier.size(60.sdp, 40.sdp).clickable {
                                 if (AdMobAdUnits.areAdsEnabled) {
                                     navHostController.navigate("premium") {
                                         this.popUpTo("home")
@@ -273,7 +270,6 @@ fun TopAppBarScreen(
                                 contentDescription = null,
                                 Modifier
                                     .size(20.sdp)
-
                             )
                             Text("Remove Ads", fontSize = 6.ssp, textAlign = TextAlign.Center)
                         }
@@ -281,8 +277,7 @@ fun TopAppBarScreen(
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         titleContentColor = primaryColor(),
-
-                        )
+                    )
                 )
             }) {
                 Box(Modifier.padding(it)) {
@@ -301,7 +296,6 @@ fun TopAppBarScreen(
                         }
                     }
 
-
                     if (isDialogVisible) {
                         context as Activity
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -311,7 +305,6 @@ fun TopAppBarScreen(
                         }
 
                     }
-
                 }
             }
         })
@@ -321,7 +314,6 @@ fun TopAppBarScreen(
 fun HomeScreen() {
     val context = LocalContext.current
     var isRefrshing by remember { mutableStateOf(false) }
-
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
         if (Constents.isInternetAvailable(context = context)) {
@@ -334,7 +326,6 @@ fun HomeScreen() {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-
                 Column(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
@@ -349,7 +340,6 @@ fun HomeScreen() {
                     }
                 }
             }
-
 
             if (isRefrshing) {
                 if (Constents.isInternetAvailable(context = context)) {

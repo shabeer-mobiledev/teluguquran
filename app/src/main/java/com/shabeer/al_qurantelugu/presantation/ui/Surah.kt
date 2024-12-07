@@ -65,10 +65,7 @@ import network.chaintech.sdpcomposemultiplatform.ssp
 fun SurahScreen(viewModel: QuranViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val surahNamesList = viewModel.pagerData.observeAsState(emptyList())
-    // State to hold the search query
     var searchQuery by remember { mutableStateOf("") }
-
-
     var count = remember { mutableStateOf(0) }
 
     Column {
@@ -78,7 +75,6 @@ fun SurahScreen(viewModel: QuranViewModel = hiltViewModel()) {
             } else {
                 count.value--
             }
-
         }
 
         if (count.value == 1) {
@@ -97,7 +93,6 @@ fun SurahScreen(viewModel: QuranViewModel = hiltViewModel()) {
                 ),
                 shape = MaterialTheme.shapes.large
             )
-
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -106,9 +101,7 @@ fun SurahScreen(viewModel: QuranViewModel = hiltViewModel()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = primaryColor())
                     }
-
                 } else {
-
                     val filteredSurahList = surahNamesList.value.filter {
                         it.surahnames.contains(searchQuery, ignoreCase = true) ||
                                 it.id.toString().contains(searchQuery)
@@ -125,7 +118,6 @@ fun SurahScreen(viewModel: QuranViewModel = hiltViewModel()) {
     }
 }
 
-
 @Composable
 fun SurahNameComposable(quranData: QuranData, context: Context) {
     context as Activity
@@ -138,9 +130,7 @@ fun SurahNameComposable(quranData: QuranData, context: Context) {
                         context.startActivity(this)
                     }
                 }
-
             }).showInterstitialAd(context)
-
         },
         modifier = Modifier
             .fillMaxWidth()
@@ -154,7 +144,7 @@ fun SurahNameComposable(quranData: QuranData, context: Context) {
             Modifier
                 .fillMaxSize()
                 .background(color = onPrimaryColor()),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -191,7 +181,7 @@ fun SurahNameComposable(quranData: QuranData, context: Context) {
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
                             "రుకు : ${quranData.ruku}",
@@ -215,7 +205,6 @@ fun SurahNameComposable(quranData: QuranData, context: Context) {
 
 @Composable
 fun NameComposable(title: String, onClick: () -> Unit) {
-    // Name Card
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -225,12 +214,11 @@ fun NameComposable(title: String, onClick: () -> Unit) {
             defaultElevation = 3.sdp
         )
     ) {
-
         Box(
             Modifier
                 .fillMaxSize()
                 .background(color = onPrimaryColor()),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 horizontalArrangement = Arrangement.Center,
@@ -245,7 +233,6 @@ fun NameComposable(title: String, onClick: () -> Unit) {
                         modifier = Modifier.padding(top = 5.sdp)
                     )
                     Box(contentAlignment = Alignment.CenterEnd, modifier = Modifier.fillMaxSize()) {
-
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
@@ -255,13 +242,8 @@ fun NameComposable(title: String, onClick: () -> Unit) {
                                 .clickable { onClick() }
                         )
                     }
-
                 }
             }
-
         }
     }
-
 }
-
-
