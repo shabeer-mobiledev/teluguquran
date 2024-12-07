@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">తెలుగు ఖురాన్</string>
-    <string name="app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="app_id">ca-app-pub-6747306937095517~3191266438</string>
+    <string name="title_activity_detail">DetailActivity</string>
 </resources>
